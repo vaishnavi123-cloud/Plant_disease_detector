@@ -8,25 +8,28 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from .models import ScanHistory
 from .serializers import ScanHistorySerializer
 
-# Lazy load classifier pipeline to avoid blocking management commands (like migrations)
-CLASSIFIER_PIPELINE = None
+# Lazy load classifier resources to avoid blocking management commands (like migrations)
+IMAGE_PROCESSOR = None
+CLASSIFIER_MODEL = None
 
 def get_classifier():
-    global CLASSIFIER_PIPELINE
-    if CLASSIFIER_PIPELINE is None:
+    global IMAGE_PROCESSOR, CLASSIFIER_MODEL
+    if CLASSIFIER_MODEL is None or IMAGE_PROCESSOR is None:
         try:
-            from transformers import pipeline
-            print("Loading Hugging Face Plant Disease Classification Model...")
-            # Load the MobileNetV2 fine-tuned model
-            CLASSIFIER_PIPELINE = pipeline(
-                "image-classification", 
-                model="linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification"
+            from transformers import AutoImageProcessor, AutoModelForImageClassification
+            print("Loading Hugging Face Plant Disease Preprocessor and Model...")
+            # Load processor from the official base repository
+            IMAGE_PROCESSOR = AutoImageProcessor.from_pretrained("google/mobilenet_v2_1.0_224")
+            # Load model weights from the fine-tuned repository
+            CLASSIFIER_MODEL = AutoModelForImageClassification.from_pretrained(
+                "linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification"
             )
             print("Model loaded successfully!")
         except Exception as e:
             print(f"Failed to load ML model, using smart color fallback. Error: {e}")
-            CLASSIFIER_PIPELINE = "fallback"
-    return CLASSIFIER_PIPELINE
+            IMAGE_PROCESSOR = "fallback"
+            CLASSIFIER_MODEL = "fallback"
+    return IMAGE_PROCESSOR, CLASSIFIER_MODEL
 
 # Treatment and Prevention database mapping for different disease codes
 DISEASE_REMEDIES = {
@@ -135,14 +138,14 @@ class ScanView(APIView):
         image_path = scan.image.path
         
         # 2. Run classification
-        classifier = get_classifier()
+        processor, model = get_classifier()
         
         plant_name = "Unknown"
         disease_name = "Unknown"
         confidence = 0.0
         label_key = "default"
         
-        if classifier == "fallback":
+        if model == "fallback":
             prediction = fallback_predict(image_path)
             plant_name = prediction["plant_name"]
             disease_name = prediction["disease_name"]
@@ -150,16 +153,26 @@ class ScanView(APIView):
             label_key = prediction["label_key"]
         else:
             try:
-                # Use HF model pipeline
-                results = classifier(image_path)
-                # Sort by score desc just in case
-                results.sort(key=lambda x: x['score'], reverse=True)
-                top_prediction = results[0]
+                from PIL import Image
+                import torch
                 
-                label = top_prediction['label']  # e.g., 'Tomato___Late_blight' or 'Tomato___healthy'
-                confidence = float(top_prediction['score'])
+                # Load and preprocess image
+                image = Image.open(image_path).convert('RGB')
+                inputs = processor(images=image, return_tensors="pt")
                 
-                # Parse label
+                # Predict
+                with torch.no_grad():
+                    outputs = model(**inputs)
+                logits = outputs.logits
+                
+                # Extract predicted label and confidence
+                predicted_class_idx = logits.argmax(-1).item()
+                label = model.config.id2label[predicted_class_idx]
+                
+                probs = torch.nn.functional.softmax(logits, dim=-1)
+                confidence = float(probs[0][predicted_class_idx].item())
+                
+                # Parse label (e.g., 'Tomato___Late_blight' or 'Tomato___healthy')
                 if "___" in label:
                     parts = label.split("___")
                     plant_name = parts[0].replace("_", " ").title()
