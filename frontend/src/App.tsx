@@ -90,7 +90,7 @@ function App() {
             <span className="app-logo">🌿</span>
             <h1 className="app-title">FloraScan AI</h1>
           </div>
-          <p className="app-subtitle">Real-time Leaf Pathogen Scanning & Diagnostic Dashboard</p>
+          <p className="app-subtitle">Real-time Plant Pathogen Scanning & Diagnostic Dashboard</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ 

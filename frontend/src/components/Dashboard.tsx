@@ -50,7 +50,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ result }) => {
         <div>
           <h3 style={{ color: 'var(--text-primary)', fontSize: '1.2rem', fontWeight: 600 }}>Awaiting Plant Scan</h3>
           <p style={{ fontSize: '0.9rem', marginTop: '6px', maxWidth: '320px' }}>
-            Please select and scan a leaf image on the left to see the diagnosis and treatment recommendations here.
+            Please select and scan a plant photo on the left to see the diagnosis and treatment recommendations here.
           </p>
         </div>
       </div>
@@ -147,15 +147,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ result }) => {
         {activeTab === 'diagnosis' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             <p>
-              Our diagnostic engine scanned the leaf sample and identified signs of <strong>{result.disease_name}</strong> on the <strong>{result.plant_name}</strong> plant.
+              Our diagnostic engine scanned the plant sample and identified signs of <strong>{result.disease_name}</strong> on the <strong>{result.plant_name}</strong> plant.
             </p>
             {isHealthy ? (
               <p>
-                The leaf exhibits optimal color balance and structural cell patterns. Chlorophyll levels appear healthy and no active fungal spores or lesions are visible on the surface.
+                The plant exhibits optimal color balance and structural cell patterns. Chlorophyll levels appear healthy and no active pathogens or lesions are visible on the surface.
               </p>
             ) : (
               <p>
-                This disease commonly targets the vascular or leaf system, limiting crop yield. Fungal spots, spore counts, or moisture-driven decay patches can propagate rapidly if the environment is humid or hot.
+                This disease commonly targets the vascular, fruit, or leaf system, limiting crop yield. Pathogen spots, spore counts, or moisture-driven decay patches can propagate rapidly if the environment is humid or hot.
               </p>
             )}
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>

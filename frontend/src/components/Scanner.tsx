@@ -68,7 +68,7 @@ export const Scanner: React.FC<ScannerProps> = ({ onScanStart, onScanComplete, o
       });
 
       if (!response.ok) {
-        throw new Error('Failed to analyze the leaf image. Please try again.');
+        throw new Error('Failed to analyze the plant image. Please try again.');
       }
 
       const result = await response.json();
@@ -90,10 +90,10 @@ export const Scanner: React.FC<ScannerProps> = ({ onScanStart, onScanComplete, o
     <div className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <h2 style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-        Leaf Diagnostics Scanner
+        Plant Diagnostics Scanner
       </h2>
       <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-        Upload a high-quality photo of your plant's leaf (showing the spots or symptoms clearly) to run our plant health diagnosis algorithm.
+        Upload a high-quality photo of any affected plant part (leaves, stem, fruit, or roots) showing the symptoms clearly to run our diagnosis algorithm.
       </p>
 
       {/* Drag & Drop Area */}
@@ -134,7 +134,7 @@ export const Scanner: React.FC<ScannerProps> = ({ onScanStart, onScanComplete, o
             <div style={{ position: 'relative', display: 'inline-block', maxWidth: '280px', maxHeight: '200px', borderRadius: '8px', overflow: 'hidden' }}>
               <img 
                 src={previewUrl} 
-                alt="Leaf scan preview" 
+                alt="Plant scan preview" 
                 style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '8px', maxHeight: '200px', objectFit: 'contain' }}
               />
               {scanning && <div className="scanner-laser"></div>}
@@ -161,7 +161,7 @@ export const Scanner: React.FC<ScannerProps> = ({ onScanStart, onScanComplete, o
             </div>
             <div>
               <p style={{ fontWeight: 500, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
-                Drag and drop your leaf photo here
+                Drag and drop your plant photo here
               </p>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '6px' }}>
                 or click to browse local files (supports PNG, JPG, JPEG)
@@ -218,7 +218,7 @@ export const Scanner: React.FC<ScannerProps> = ({ onScanStart, onScanComplete, o
       }}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--secondary)" strokeWidth="2" style={{ marginTop: '2px', flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
         <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-          <strong>Diagnosable Crops:</strong> Tomato, Potato, Apple, Corn, Grape, and Pepper. The AI model detects Rust, Scabs, Blight, Spots, and general leaf health status.
+          <strong>Diagnosable Crops:</strong> Tomato, Potato, Apple, Corn, Grape, and Pepper. The AI model detects Rust, Scabs, Blight, Spots, and general plant health status.
         </span>
       </div>
     </div>
