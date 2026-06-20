@@ -1,0 +1,24 @@
+# Python / Django
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+db.sqlite3
+backend/media/
+.env
+
+# Node / React
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+.eslintcache
+
+# OS/IDE settings
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.gemini/
