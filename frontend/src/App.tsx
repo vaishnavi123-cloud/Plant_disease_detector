@@ -24,7 +24,7 @@ function App() {
     try {
       const response = await fetch('/api/history/');
       if (response.ok) {
-        const data = await response.json();
+        const data = (await response.json()) as ScanResult[];
         setHistory(data);
         // Load latest scan into dashboard by default if history is not empty
         if (data.length > 0) {
@@ -33,8 +33,9 @@ function App() {
       } else {
         throw new Error('Failed to load scan records');
       }
-    } catch (err: any) {
-      console.error('History fetch error:', err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load scan records';
+      console.error('History fetch error:', message);
     }
   };
 
@@ -67,8 +68,8 @@ function App() {
       } else {
         throw new Error('Could not clear scan archive');
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to clear records.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to clear records.');
     }
   };
 

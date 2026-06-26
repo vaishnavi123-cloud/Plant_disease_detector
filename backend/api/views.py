@@ -129,91 +129,117 @@ class ScanView(APIView):
         image_file = request.FILES.get('image')
         if not image_file:
             return Response({"error": "No image file provided"}, status=status.HTTP_400_BAD_REQUEST)
-            
+
+        # --- Server-side validation ---
+        ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp']
+        MAX_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
+
+        if image_file.content_type not in ALLOWED_TYPES:
+            return Response(
+                {"error": f"Invalid file type '{image_file.content_type}'. Only JPEG, PNG and WebP images are accepted."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if image_file.size > MAX_SIZE_BYTES:
+            return Response(
+                {"error": f"File too large ({image_file.size // (1024*1024)} MB). Maximum allowed size is 10 MB."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        # ------------------------------
+
         # 1. Create the instance (stores the uploaded image file)
         scan = ScanHistory(image=image_file, plant_name="Detecting...", disease_name="Scanning...", confidence=0.0)
         scan.save()
-        
-        # Get absolute file path for prediction
-        image_path = scan.image.path
-        
-        # 2. Run classification
-        processor, model = get_classifier()
-        
-        plant_name = "Unknown"
-        disease_name = "Unknown"
-        confidence = 0.0
-        label_key = "default"
-        
-        if model == "fallback":
-            prediction = fallback_predict(image_path)
-            plant_name = prediction["plant_name"]
-            disease_name = prediction["disease_name"]
-            confidence = prediction["confidence"]
-            label_key = prediction["label_key"]
-        else:
-            try:
-                from PIL import Image
-                import torch
-                
-                # Load and preprocess image
-                image = Image.open(image_path).convert('RGB')
-                inputs = processor(images=image, return_tensors="pt")
-                
-                # Predict
-                with torch.no_grad():
-                    outputs = model(**inputs)
-                logits = outputs.logits
-                
-                # Extract predicted label and confidence
-                predicted_class_idx = logits.argmax(-1).item()
-                label = model.config.id2label[predicted_class_idx]
-                
-                probs = torch.nn.functional.softmax(logits, dim=-1)
-                confidence = float(probs[0][predicted_class_idx].item())
-                
-                # Parse label (e.g., 'Tomato___Late_blight' or 'Tomato___healthy')
-                if "___" in label:
-                    parts = label.split("___")
-                    plant_name = parts[0].replace("_", " ").title()
-                    raw_disease = parts[1]
-                    disease_name = raw_disease.replace("_", " ").title()
-                    
-                    # Match label_key for treatment
-                    if raw_disease.lower() in ["healthy", "early_blight", "late_blight", "apple_scab", "rust", "black_rot", "target_spot"]:
-                        label_key = raw_disease
-                    elif "blight" in raw_disease.lower():
-                        label_key = "Early_blight"
-                    elif "rust" in raw_disease.lower():
-                        label_key = "Rust"
-                    elif "rot" in raw_disease.lower():
-                        label_key = "Black_rot"
-                else:
-                    plant_name = "Plant"
-                    disease_name = label.replace("_", " ").title()
-                    label_key = "default"
-                    
-            except Exception as e:
-                print(f"HF model prediction failed, falling back. Error: {e}")
+
+        try:
+            # Get absolute file path for prediction
+            image_path = scan.image.path
+
+            # 2. Run classification
+            processor, model = get_classifier()
+
+            plant_name = "Unknown"
+            disease_name = "Unknown"
+            confidence = 0.0
+            label_key = "default"
+
+            if model == "fallback":
                 prediction = fallback_predict(image_path)
                 plant_name = prediction["plant_name"]
                 disease_name = prediction["disease_name"]
                 confidence = prediction["confidence"]
                 label_key = prediction["label_key"]
-                
-        # 3. Retrieve remedies
-        remedy = DISEASE_REMEDIES.get(label_key, DISEASE_REMEDIES['default'])
-        
-        # 4. Save analysis results to the database record
-        scan.plant_name = plant_name
-        scan.disease_name = disease_name
-        scan.confidence = round(confidence, 4)
-        scan.treatment = remedy['treatment']
-        scan.prevention = remedy['prevention']
-        scan.save()
-        
-        serializer = ScanHistorySerializer(scan)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+            else:
+                try:
+                    from PIL import Image
+                    import torch
+
+                    # Load and preprocess image
+                    image = Image.open(image_path).convert('RGB')
+                    inputs = processor(images=image, return_tensors="pt")
+
+                    # Predict
+                    with torch.no_grad():
+                        outputs = model(**inputs)
+                    logits = outputs.logits
+
+                    # Extract predicted label and confidence
+                    predicted_class_idx = logits.argmax(-1).item()
+                    label = model.config.id2label[predicted_class_idx]
+
+                    probs = torch.nn.functional.softmax(logits, dim=-1)
+                    confidence = float(probs[0][predicted_class_idx].item())
+
+                    # Parse label (e.g., 'Tomato___Late_blight' or 'Tomato___healthy')
+                    if "___" in label:
+                        parts = label.split("___")
+                        plant_name = parts[0].replace("_", " ").title()
+                        raw_disease = parts[1]
+                        disease_name = raw_disease.replace("_", " ").title()
+
+                        # Match label_key for treatment
+                        if raw_disease.lower() in ["healthy", "early_blight", "late_blight", "apple_scab", "rust", "black_rot", "target_spot"]:
+                            label_key = raw_disease
+                        elif "blight" in raw_disease.lower():
+                            label_key = "Early_blight"
+                        elif "rust" in raw_disease.lower():
+                            label_key = "Rust"
+                        elif "rot" in raw_disease.lower():
+                            label_key = "Black_rot"
+                    else:
+                        plant_name = "Plant"
+                        disease_name = label.replace("_", " ").title()
+                        label_key = "default"
+
+                except Exception as e:
+                    print(f"HF model prediction failed, falling back. Error: {e}")
+                    prediction = fallback_predict(image_path)
+                    plant_name = prediction["plant_name"]
+                    disease_name = prediction["disease_name"]
+                    confidence = prediction["confidence"]
+                    label_key = prediction["label_key"]
+
+            # 3. Retrieve remedies
+            remedy = DISEASE_REMEDIES.get(label_key, DISEASE_REMEDIES['default'])
+
+            # 4. Save analysis results to the database record
+            scan.plant_name = plant_name
+            scan.disease_name = disease_name
+            scan.confidence = round(confidence, 4)
+            scan.treatment = remedy['treatment']
+            scan.prevention = remedy['prevention']
+            scan.save()
+
+            serializer = ScanHistorySerializer(scan)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            # Clean up the partial/orphaned record to keep the DB tidy
+            scan.delete()
+            print(f"Unexpected error during scan processing: {e}")
+            return Response(
+                {"error": "An unexpected server error occurred. Please try again."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class HistoryListView(APIView):
     def get(self, request, *args, **kwargs):

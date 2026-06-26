@@ -2,8 +2,19 @@ import React, { useState, useRef } from 'react';
 
 interface ScannerProps {
   onScanStart: () => void;
-  onScanComplete: (result: any) => void;
+  onScanComplete: (result: ScanResult) => void;
   onError: (error: string) => void;
+}
+
+interface ScanResult {
+  id: number;
+  image: string;
+  plant_name: string;
+  disease_name: string;
+  confidence: number;
+  treatment: string;
+  prevention: string;
+  created_at: string;
 }
 
 export const Scanner: React.FC<ScannerProps> = ({ onScanStart, onScanComplete, onError }) => {
@@ -29,7 +40,11 @@ export const Scanner: React.FC<ScannerProps> = ({ onScanStart, onScanComplete, o
       return;
     }
     setSelectedFile(file);
-    setPreviewUrl(URL.createObjectURL(file));
+    // Revoke previous object URL to prevent memory leaks
+    setPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -68,13 +83,15 @@ export const Scanner: React.FC<ScannerProps> = ({ onScanStart, onScanComplete, o
       });
 
       if (!response.ok) {
-        throw new Error('Failed to analyze the plant image. Please try again.');
+        // Try to parse a server-side error message if available
+        const errData = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(errData?.error || 'Failed to analyze the plant image. Please try again.');
       }
 
-      const result = await response.json();
+      const result = (await response.json()) as ScanResult;
       onScanComplete(result);
-    } catch (err: any) {
-      onError(err.message || 'An error occurred during prediction.');
+    } catch (err: unknown) {
+      onError(err instanceof Error ? err.message : 'An error occurred during prediction.');
     } finally {
       setScanning(false);
     }
@@ -82,14 +99,18 @@ export const Scanner: React.FC<ScannerProps> = ({ onScanStart, onScanComplete, o
 
   const handleReset = () => {
     setSelectedFile(null);
-    setPreviewUrl(null);
+    setPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
     setScanning(false);
   };
 
   return (
     <div className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <h2 style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        {/* Leaf / plant icon */}
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 8C8 10 5.9 16.17 3.82 19.34a1 1 0 0 0 1.41 1.41C8.92 18.79 12.71 16.5 17 16.5c4 0 6-1 7-4-1.33-1.33-4-3-7-4.5z"/><path d="M3.82 19.34C6 14 9 10.5 17 8"/></svg>
         Plant Diagnostics Scanner
       </h2>
       <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
